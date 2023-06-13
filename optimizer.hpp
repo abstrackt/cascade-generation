@@ -246,7 +246,8 @@ class Cascade {
 
         // If we pass...
         
-        // If enough levels and tokens from the clause are remaining, we can attempt another filtering step from the same clause (or not)
+        // If enough levels and tokens from the clause are remaining, we can attempt another filtering step from the same clause 
+        // (or not, in order to make the tree smaller which could be a good thing)
         if (clauses.size() <= DNF - level && selected[cl_idx].size() > 0 && rand() % 2 == 0) {
             random_tree(node * 2 + 2, level + 1, tree, clauses, selected);
         }
@@ -265,7 +266,7 @@ class Cascade {
     bool run_filter(const string& input, const string& filter)
     {
         // TODO: Connect with filtering code
-        return true;
+        return is_substring(input, filter);
     };
 
 public:
