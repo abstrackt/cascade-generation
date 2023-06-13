@@ -3,6 +3,6 @@
 
 int main()
 {
-    Cascade<4> c("lorem ipsum\ndolor sit amet\nconsectetur adipiscing elit", "lorem && ip || adipis", 3);
+    Cascade<4, 3> c("lorem ipisum\ndolor sit amet\nconsectetur adipiscing elit", "lorem && ipisu || adipis", 3);
     c.eval("dolor sit");
 }
