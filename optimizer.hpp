@@ -3,10 +3,12 @@
 #include<vector>
 #include<queue>
 #include<set>
+#include<stack>
 #include<sstream>
 #include<iostream>
 #include<algorithm>
 #include<random>
+#include <limits>
 
 using namespace std;
 
@@ -16,6 +18,9 @@ using namespace std;
 template<size_t RF, size_t DNF = 4, size_t NC = 32>
 class Cascade {
     char tree_nodes[(1 << DNF) - 1][RF + 1];
+
+    const int FILTER_COST = 1;
+    const int PARSE_COST = 20;
 
     vector<vector<string>> get_clauses(const string& filter)
     {
@@ -213,9 +218,17 @@ class Cascade {
             trees.emplace_back(tree);
         }
 
-        // TODO: Calculate costs of every generated cascade and pick the best one
-
+        float best_cost = numeric_limits<float>().max();
         int best = 0;
+
+        for (int i = 0; i < NC; i++) {
+            auto cost = tree_cost(trees[i], hits);
+
+            if (cost < best_cost) {
+                best_cost = cost;
+                best = i;
+            }
+        }
 
         auto best_tree = trees[best];
 
@@ -231,7 +244,12 @@ class Cascade {
     // When a filter fails, create another node checking one of the remaining clauses
     // When a filter passes, either end execution or make another node checking the same clause 
     // (but only if there are more levels remaining than the remaining number of clauses)
-    void random_tree(int node, int level, vector<int> &tree, queue<int> clauses, vector<vector<int>> selected)
+    void random_tree(
+        int node, 
+        int level, 
+        vector<int> &tree, 
+        queue<int> clauses, 
+        vector<vector<int>> selected)
     {
         // If there is nothing more to add from the query, or we are outside of the tree return
         if (clauses.empty() || node >= (1 << DNF) - 1)
@@ -257,6 +275,136 @@ class Cascade {
         // Try another clause
         clauses.pop();
         random_tree(node * 2 + 1, level + 1, tree, clauses, selected);
+    }
+
+    struct cost_data {
+        int index;
+        vector<bool> hits;
+    };
+
+    float tree_cost(
+        const vector<int>& tree,
+        const vector<vector<bool>>& hits) {
+
+        float total_cost = 0;
+
+        stack<cost_data> process;
+
+        // Traverse the entire tree, assume every node has the same, low 
+        // execution cost and parsing is significantly more expensive
+
+        // Root node always executes, so the probability is 1
+        total_cost += 1 * FILTER_COST;
+
+        // Add the left node of the root (only processed when the root fails)
+        
+        cost_data left;
+        cost_data right;
+
+        left.index = 1;
+        left.hits = l_not(hits[tree[0]]);
+
+        right.index = 2;
+        right.hits = l_iden(hits[tree[0]]);
+
+        if (tree[1] != -1) {
+            process.push(left);
+        }
+
+        if (tree[2] != -1) {
+            process.push(right);
+        }
+
+
+        while (!process.empty()) {
+            cost_data curr = process.top();
+            process.pop();
+
+            auto fail_idx = 2 * curr.index + 1;
+            auto pass_idx = 2 * curr.index + 2;
+
+            auto parent_hits = curr.hits;
+            auto curr_hits = hits[tree[curr.index]];
+
+            auto curr_pass = l_and(parent_hits, curr_hits);
+            auto curr_fail = l_and(parent_hits, l_not(curr_hits));
+
+            auto p_fail = prob(curr_fail);
+
+            if (fail_idx < (1 << DNF) - 1 && tree[fail_idx] != -1) {
+                // Add the failing node to the stack
+                total_cost += p_fail * FILTER_COST;
+
+                cost_data fail_node;
+                fail_node.index = fail_idx;
+                fail_node.hits = curr_fail;
+
+                process.push(fail_node);
+            }
+
+            auto p_pass = prob(curr_pass);
+
+            if (pass_idx < (1 << DNF) - 1 && tree[pass_idx] != -1) {
+                // Add the passing node to the stack
+                total_cost += p_pass * FILTER_COST;
+                
+                cost_data pass_node;
+                pass_node.index = pass_idx;
+                pass_node.hits = curr_pass;
+
+                process.push(pass_node);
+            }
+            else {
+                // We need to parse the line since we have passed the cascade
+                total_cost += p_pass * PARSE_COST;
+            }
+        }
+
+        return total_cost;
+    }
+
+    float prob(const vector<bool> a) {
+        int total = 0;
+
+        if (a.empty()) {
+            return 0;
+        }
+
+        for (int i = 0; i < a.size(); i++) {
+            if (a[i]) {
+                total++;
+            }
+        }
+
+        return total / (float)a.size();
+    }
+
+    vector<bool> l_and(const vector<bool> a, const vector<bool> b) {
+        vector<bool> res;
+
+        if (a.size() != b.size()) {
+            return a;
+        }
+
+        for (int i = 0; i < a.size(); i++) {
+            res.push_back(a[i] && b[i]);
+        }
+
+        return res;
+    }
+
+    vector<bool> l_not(const vector<bool> a) {
+        vector<bool> res;
+
+        for (int i = 0; i < a.size(); i++) {
+            res.push_back(!a[i]);
+        }
+
+        return res;
+    }
+        
+    vector<bool> l_iden(const vector<bool> a) {
+        return vector<bool>(a);
     }
 
     bool is_substring(const string& input, const string& filter) {
@@ -320,7 +468,7 @@ public:
             {
                 // If right child is empty or out of range we have passed the cascade.
                 int right = parent * 2 + 2;
-                    if (right >= 15 || tree_nodes[right][0] == 0) {
+                    if (right >= (1 << DNF) - 1 || tree_nodes[right][0] == 0) {
                         return true;
                     }
                 parent = right;
@@ -329,7 +477,7 @@ public:
             {
                 // If left child is empty or out of range we have failed the cascade.
                 int left = parent * 2 + 1;
-                if (left >= 15 || tree_nodes[left][0] == 0) {
+                if (left >= (1 << DNF) - 1 || tree_nodes[left][0] == 0) {
                     return false;
                 }
                 parent = left;
