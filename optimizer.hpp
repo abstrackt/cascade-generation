@@ -25,7 +25,6 @@ class Cascade {
     vector<vector<string>> get_clauses(const string& filter)
     {
         // TODO, plug in a proper parser here, right now we assume everything is provided in DNF form without parentheses.
-
         vector<vector<string>> result;
         stringstream ss(filter);
 
@@ -131,70 +130,62 @@ class Cascade {
         }
     };
 
-    vector<vector<int>> optimize_raw_filters(
+    void calculate_passthrough(
         const vector<vector<vector<string>>>& raw_filters, 
         const vector<string>& records, 
         vector<string>& filters, 
-        vector<vector<bool>>& hits)
+        vector<vector<bool>>& hits,
+        vector<vector<vector<int>>>& map)
     {
-        // Generate passthrough rates for each filter, select the best filter for each token
-        vector<vector<int>> selected;
+        int clause_index = 0;
 
-        for (auto filters_for_clause : raw_filters) {
+        // Generate passthrough rates for each filter
 
-            vector<int> best_for_clause;
+        filters.clear();
+        map.clear();
+        hits.clear();
 
-            int clause_index = best_for_clause.size();
+        // For each clause
+        for (int i = 0; i < raw_filters.size(); i++) {
+            map.emplace_back(vector<vector<int>>(raw_filters[i].size()));
+            map[i].clear();
 
-            for (auto filters_for_token : filters_for_clause) {
+            // For each token
+            for (int j = 0; j < raw_filters[i].size(); j++) {
+                map[i].emplace_back(vector<int>(raw_filters[i][j].size()));
+                map[i][j].clear();
 
-                if (filters_for_token.size() == 0)
-                    continue;
+                // For each raw filter
+                for (int k = 0; k < raw_filters[i][j].size(); k++) {
+                    auto rf = (int)filters.size();
 
-                int best_filter = filters.size();
-                int best_hit = 0;
+                    map[i][j].emplace_back(rf);
 
-                for (int i = 0; i < filters_for_token.size(); i++) {
+                    filters.emplace_back(raw_filters[i][j][k]);
 
-                    auto filter = filters_for_token[i];
-                    int hit = 0;
-
-                    auto filter_index = filters.size();
-
-                    filters.push_back(filter);
                     hits.emplace_back(vector<bool>(records.size()));
 
-                    for (int j = 0; j < records.size(); j++) {
-                        hits[filter_index][j] = is_substring(records[j], filter);
-                        hit++;
-                    }
-
-                    if (hit > best_hit) {
-                        best_filter = filter_index;
-                        best_hit = hit;
+                    // For each sampled record
+                    for (int l = 0; l < records.size(); l++) {
+                        hits[rf].emplace_back(is_substring(records[l], raw_filters[i][j][k]));
                     }
                 }
-
-                best_for_clause.push_back(best_filter);
             }
-
-            selected.emplace_back(best_for_clause);
         }
-
-        return selected;
     };
 
     void generate_cascade(
-        const vector<vector<int>>& selected, 
+        const vector<vector<vector<int>>>& map,
         const vector<string>& filters,
         const vector<vector<bool>>& hits)
     {
         int parent = 0;
 
-        int levels = min(DNF, selected.size());
+        int levels = min(DNF, map.size());
 
         vector<int> clauses;
-        for (int i = 0; i < selected.size(); i++) {
+
+        for (int i = 0; i < map.size(); i++) {
             clauses.emplace_back(i);
         }
 
@@ -214,7 +205,7 @@ class Cascade {
                 tree[j] = -1;
             }
 
-            random_tree(0, 1, tree, clause_queue, selected);
+            random_tree(0, 1, tree, clause_queue, map);
             trees.emplace_back(tree);
         }
 
@@ -249,32 +240,33 @@ class Cascade {
         int level, 
         vector<int> &tree, 
         queue<int> clauses, 
-        vector<vector<int>> selected)
+        vector<vector<vector<int>>> map)
     {
         // If there is nothing more to add from the query, or we are outside of the tree return
         if (clauses.empty() || node >= (1 << DNF) - 1)
             return;
 
         int cl_idx = clauses.front();
-        int opt_idx = rand() % selected[cl_idx].size();
+        int tk_idx = rand() % map[cl_idx].size();
+        int rf_idx = rand() % map[cl_idx][tk_idx].size();
 
-        tree[node] = selected[cl_idx][opt_idx];
+        tree[node] = map[cl_idx][tk_idx][rf_idx];
 
-        selected[cl_idx].erase(selected[cl_idx].begin() + opt_idx);
+        map[cl_idx][tk_idx].erase(map[cl_idx][tk_idx].begin() + rf_idx);
 
         // If we pass...
         
         // If enough levels and tokens from the clause are remaining, we can attempt another filtering step from the same clause 
         // (or not, in order to make the tree smaller which could be a good thing)
-        if (clauses.size() <= DNF - level && selected[cl_idx].size() > 0 && rand() % 2 == 0) {
-            random_tree(node * 2 + 2, level + 1, tree, clauses, selected);
+        if (clauses.size() <= DNF - level && map[cl_idx][tk_idx].size() > 0 && rand() % 2 == 0) {
+            random_tree(node * 2 + 2, level + 1, tree, clauses, map);
         }
 
         // If we fail...
 
         // Try another clause
         clauses.pop();
-        random_tree(node * 2 + 1, level + 1, tree, clauses, selected);
+        random_tree(node * 2 + 1, level + 1, tree, clauses, map);
     }
 
     struct cost_data {
@@ -429,10 +421,11 @@ public:
 
         vector<string> filters;
         vector<vector<bool>> hits;
+        vector<vector<vector<int>>> map;
 
-        auto selected = optimize_raw_filters(raw_filters, records, filters, hits);
+        calculate_passthrough(raw_filters, records, filters, hits, map);
 
-        for (int i = 0; i < raw_filters.size(); i++) 
+        for (int i = 0; i < raw_filters.size(); i++)
         {
             auto clause = raw_filters[i];
             cout << "RFs for clause " << i << ": " << endl;
@@ -454,7 +447,7 @@ public:
             cout << record << endl;
         }
 
-        generate_cascade(selected, filters, hits);
+        generate_cascade(map, filters, hits);
     };
 
     bool eval(const string& input) 
