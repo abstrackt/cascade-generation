@@ -8,7 +8,8 @@
 #include<iostream>
 #include<algorithm>
 #include<random>
-#include <limits>
+#include<limits>
+#include<string>
 
 using namespace std;
 
@@ -227,7 +228,7 @@ class Cascade {
 
         for (int i = 0; i < (1 << DNF) - 1; i++) {
             if (best_tree[i] != -1)
-            strncpy_s(&tree_nodes[i][0], sizeof tree_nodes[i], filters[best_tree[i]].c_str(), RF);
+                strncpy(&tree_nodes[i][0], filters[best_tree[i]].c_str(), RF);
         }
     };
 
