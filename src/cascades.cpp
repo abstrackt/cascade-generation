@@ -1,19 +1,24 @@
 #include <iostream>
-#include <sstream>
+#include <cstdlib>
+#include <fstream>
 #include "optimizer.hpp"
 
-int main()
+int main(int argc, char *argv[])
 {
-    stringstream ss;
+    if (argc != 4) {
+        std::cout << "Usage: ./cascades <INPUT FILE PATH (jsonlines)> <FILTER STATEMENT> <NUMBER OF SAMPLES>";
+        return 0;
+    }
 
-    ss << "name: Richard," << endl;
-    ss << "age: 27," << endl;
-    ss << "nationality: British" << endl;
-    ss << "name: Will," << endl;
-    ss << "age: 40," << endl;
-    ss << "nationality: Italian" << endl;
+    auto path = argv[1];
+    auto filter = argv[2];
+    auto samples = atoi(argv[3]);
 
-    Cascade<4, 6> c(ss.str(), "name && Will || age && 40 || Italian", 8);
-    std::cout << "name: Will evaluates to: " << c.eval("name: Will") << endl;
-    std::cout << "name: Richard evaulates to: " << c.eval("name: Richard") << endl;
+    std::ifstream jsonfile(path);
+    std::stringstream buf;
+    buf << jsonfile.rdbuf();
+
+    Cascade<6, 4>(buf.str(), filter, samples);
+
+    return 0;
 }

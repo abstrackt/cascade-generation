@@ -410,6 +410,16 @@ class Cascade {
         return is_substring(input, filter);
     };
 
+    void print_cascade() {
+        for (int i = 0; i < (1 << DNF) - 1; i++) {
+            for (int j = 0; j < RF + 1; j++) {
+                std::cout << "\"\\" << (int)tree_nodes[i][j] << "\"";
+                if (i != (1 << DNF) - 2 || j != RF)
+                    std::cout << ", ";
+            }
+        }
+    }
+
 public:
     Cascade(string json, string filter, size_t n_samples)
     {
@@ -426,29 +436,9 @@ public:
 
         calculate_passthrough(raw_filters, records, filters, hits, map);
 
-        for (int i = 0; i < raw_filters.size(); i++)
-        {
-            auto clause = raw_filters[i];
-            cout << "RFs for clause " << i << ": " << endl;
-            for (int j = 0; j < clause.size(); j++)
-            {
-                auto token = raw_filters[i][j];
-                cout << "  RFs for token " << clauses[i][j] << ": " << endl;
-                for (auto rf : token) 
-                {
-                    cout << "    " << rf << endl;
-                }
-            }
-        }
-        
-        cout << endl << "Records:" << endl;
-
-        for (auto record : records) 
-        {
-            cout << record << endl;
-        }
-
         generate_cascade(map, filters, hits);
+
+        print_cascade();
     };
 
     bool eval(const string& input) 
