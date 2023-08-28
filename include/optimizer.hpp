@@ -410,16 +410,6 @@ class Cascade {
         return is_substring(input, filter);
     };
 
-    void print_cascade() {
-        for (int i = 0; i < (1 << DNF) - 1; i++) {
-            for (int j = 0; j < RF + 1; j++) {
-                std::cout << int(tree_nodes[i][j]);
-                if (i != (1 << DNF) - 2 || j != RF)
-                    std::cout << ", ";
-            }
-        }
-    }
-
 public:
     Cascade(string json, string filter, size_t n_samples)
     {
@@ -437,8 +427,6 @@ public:
         calculate_passthrough(raw_filters, records, filters, hits, map);
 
         generate_cascade(map, filters, hits);
-
-        print_cascade();
     };
 
     bool eval(const string& input) 
@@ -469,5 +457,15 @@ public:
         }
         
         return false;
+    }
+
+    void print_cascade() {
+        for (int i = 0; i < (1 << DNF) - 1; i++) {
+            for (int j = 0; j < RF + 1; j++) {
+                std::cout << int(tree_nodes[i][j]);
+                if (i != (1 << DNF) - 2 || j != RF)
+                    std::cout << ", ";
+            }
+        }
     }
 };

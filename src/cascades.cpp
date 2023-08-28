@@ -3,6 +3,9 @@
 #include <fstream>
 #include "optimizer.hpp"
 
+const int MAX_CLAUSES = 6;
+const int FILTER_LENGTH = 4;
+
 int main(int argc, char *argv[])
 {
     if (argc != 4) {
@@ -18,7 +21,9 @@ int main(int argc, char *argv[])
     std::stringstream buf;
     buf << jsonfile.rdbuf();
 
-    Cascade<6, 4>(buf.str(), filter, samples);
+    auto c = Cascade<MAX_CLAUSES, FILTER_LENGTH>(buf.str(), filter, samples);
+
+    c.print_cascade();
 
     return 0;
 }
