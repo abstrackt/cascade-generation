@@ -413,7 +413,7 @@ class Cascade {
     void print_cascade() {
         for (int i = 0; i < (1 << DNF) - 1; i++) {
             for (int j = 0; j < RF + 1; j++) {
-                std::cout << "\"\\" << (int)tree_nodes[i][j] << "\"";
+                std::cout << int(tree_nodes[i][j]);
                 if (i != (1 << DNF) - 2 || j != RF)
                     std::cout << ", ";
             }
