@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
     std::stringstream buf;
     buf << jsonfile.rdbuf();
 
-    auto c = Cascade<MAX_CLAUSES, FILTER_LENGTH>(buf.str(), filter, samples);
+    auto c = Cascade<FILTER_LENGTH, MAX_CLAUSES>(buf.str(), filter, samples);
 
     c.print_cascade();
 
