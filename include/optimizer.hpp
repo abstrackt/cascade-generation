@@ -207,6 +207,7 @@ class Cascade {
             }
 
             random_tree(0, 1, tree, clause_queue, map);
+
             trees.emplace_back(tree);
         }
 
@@ -234,7 +235,7 @@ class Cascade {
 
     // Generate a random, but valid cascade tree
     // When a filter fails, create another node checking one of the remaining clauses
-    // When a filter passes, either end execution or make another node checking the same clause 
+    // When a filter passes, either check another clause (if any remaining) or make another node checking the same clause
     // (but only if there are more levels remaining than the remaining number of clauses)
     void random_tree(
         int node, 
@@ -289,25 +290,12 @@ class Cascade {
         // Root node always executes, so the probability is 1
         total_cost += 1 * FILTER_COST;
 
-        // Add the left node of the root (only processed when the root fails)
-        
-        cost_data left;
-        cost_data right;
+        cost_data root;
 
-        left.index = 1;
-        left.hits = l_not(hits[tree[0]]);
+        root.index = 0;
+        root.hits = l_iden(hits[tree[0]]);
 
-        right.index = 2;
-        right.hits = l_iden(hits[tree[0]]);
-
-        if (tree[1] != -1) {
-            process.push(left);
-        }
-
-        if (tree[2] != -1) {
-            process.push(right);
-        }
-
+        process.push(root);
 
         while (!process.empty()) {
             cost_data curr = process.top();
